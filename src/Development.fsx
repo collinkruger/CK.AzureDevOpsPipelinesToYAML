@@ -1,0 +1,5 @@
+#r "nuget:canopy,2.1.5"
+#r "nuget:Selenium.WebDriver.ChromeDriver,91.0.4472.10100"
+#load "Domain.fs"
+#load "CanopyExtensions.fs"
+#load "Scrape.fs"
