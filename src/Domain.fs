@@ -16,7 +16,8 @@ type Argument = {
 }
 
 type Task = {
-   YAML: string
+    DisplayName: string
+    YAML: string
 }
 
 type TaskGroupCategory =
@@ -26,7 +27,6 @@ type TaskGroupCategory =
     | Utility
     | Test
 
-
 type TaskGroup = {
     Name: string
     Category: TaskGroupCategory
@@ -34,14 +34,13 @@ type TaskGroup = {
 }
 
 type TaskGroupReference = {
-    Name: string
-    Category: TaskGroupCategory
+    DisplayName: string
     Arguments: Argument list
 }
 
 type AgentJobTask =
-    | Task
-    | TaskGroup
+    | Task of Task
+    | TaskGroupReference of TaskGroupReference
 
 type AgentJob = {
     Name: string

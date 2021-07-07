@@ -4,6 +4,7 @@ open System
 open canopy
 open canopy.classic
 open OpenQA.Selenium
+open Domain
 
 
 // Types ----------------------------------------------------------------------------
@@ -53,10 +54,9 @@ type VariableGroup = {
     Variables: VariableGroupVariable list
 }
 
-type TaskGroupArgument = {
-    ParameterName: string
-    ArgumentValue: string
-}
+type PipelineType =
+    | Build
+    | Release
 
 
 // Functions ------------------------------------------------------------------------
@@ -66,7 +66,7 @@ let getRightPane () =
     |> RightPane
 
 let getAgentJobHeaders () =
-    elements ".phase-item"
+    elements ".phase-item .two-panel-overview"
     |> List.map AgentJobHeader
 
 let getTaskHeaders () =
@@ -86,6 +86,12 @@ let isTaskGroup (taskHeader:TaskHeader) =
     |> descendent "img"
     |> attr "src"
     |> (fun str -> str.EndsWith("icon-meta-task.png"))
+
+let isTaskGroupDisabled (taskHeader:TaskHeader) =
+    taskHeader.DOMElement
+    |> matches ".is-disabled"
+
+let isTaskGroupEnabled taskHeader = not <| isTaskGroupDisabled taskHeader
 
 let clickTasksTab () =
     findByText "Tasks"
@@ -110,13 +116,16 @@ let clickVariableGroups () =
     findByText "Variable groups"
     |> click
 
-let getPipelineVariablesVariables (rightPane:RightPane) =
+let getPipelineVariablesVariables (pipelineType:PipelineType) (rightPane:RightPane) =
     rightPane.DOMElement
     |> descendent "[aria-label=\"Pipeline variables table\"] > div:not(:first-child)"
     |> descendents "[role=row]"
     |> List.map (fun el ->
-        let texts = el |> descendents ".ms-List-page .flat-view-text-preserve" |> List.map read
-        let settableAtQueueTime = el |> descendent "button[aria-label=\"Settable at queue time\"]" |> matches ".is-checked"
+        let texts = el |> descendents "pre" |> List.map read
+        
+        let settableAtQueueTime = el |> descendent (match pipelineType with Build -> "button[aria-label=\"Settable at queue time\"]"
+                                                                          | Release -> "button[aria-label=\"Settable at release time\"]")
+                                     |> matches ".is-checked"
 
         { Name = texts.[0]
           Value = if texts.Length = 2 then Value texts.[1] else Secret
@@ -146,6 +155,11 @@ let getVariableGroupsAndVariables (rightPane:RightPane) =
           Variables = variables }
     )
 
+let getTaskDisplayName (rightPane:RightPane) =
+    rightPane.DOMElement
+    |> descendent ".task-name input"
+    |> read
+
 let getTaskYaml () =
     findByText "View YAML" |> click
     waitForElement "body > .ui-dialog"
@@ -153,10 +167,20 @@ let getTaskYaml () =
     element "body > .ui-dialog [aria-label=\"Close\"]" |> click
     str
 
+let getTaskGroupReference (rightPane:RightPane) =
+    let displayName = getTaskDisplayName rightPane
+
+    let arguments = rightPane.DOMElement
+                    |> descendents ".task-details-body .ms-List-cell"
+                    |> List.map (fun el -> { ParameterName = el |> descendent "label" |> read
+                                             ArgumentValue = el |> descendent "textarea" |> read })
+    
+    { DisplayName = displayName; Arguments = arguments }
+
 
 // WIP ------------------------------------------------------------------------------
 
-let getAllPipelineData_WIP_WIP_WIP () =
+let getAllPipelineData_WIP_WIP_WIP (pipelineType:PipelineType) =
     // TODO: Handle Multiple Agent Jobs
     // TODO: Handle Task Groups
 
@@ -164,7 +188,7 @@ let getAllPipelineData_WIP_WIP_WIP () =
     clicksVariablesTab()
 
     clickPipelineVariables()
-    let pipelineVariables = getRightPane() |> getPipelineVariablesVariables
+    let pipelineVariables = getRightPane() |> getPipelineVariablesVariables pipelineType
 
     clickVariableGroups()
     let rightPane = getRightPane()
@@ -174,7 +198,7 @@ let getAllPipelineData_WIP_WIP_WIP () =
 
     // Get Tasks ----------------------------------------------------------
     clickTasksTab()
-    clickPipelineHeader()
+    // clickPipelineHeader()
 
     let rightPane = getRightPane()
     
@@ -182,49 +206,47 @@ let getAllPipelineData_WIP_WIP_WIP () =
     
     let agentJobHeader = getAgentJobHeaders() |> List.head // TODO: CHANGE THIS. THIS DOES NOT HOLD.
     
-    let agentJobTasksYAML = getTaskHeaders ()
-                            |> List.filter (isTaskGroup >> not)
-                            |> List.map (fun header ->
-                                click header.DOMElement
-                                getTaskYaml ())
+    let agentJobTasks = getTaskHeaders()
+                        |> List.filter (fun x -> (isTaskGroup x |> not) || (isTaskGroupEnabled x))
+                        |> List.map (fun header ->
+                              click header.DOMElement
+                              waitForElement ".rightPane .task-details-body"
+                              let rightPane = getRightPane()
+                              if header |> isTaskGroup then
+                                  // TODO: recurse into task group
+                                  TaskGroupReference (getTaskGroupReference rightPane)
+                              else
+                                  Task { DisplayName = rightPane |> getTaskDisplayName
+                                         YAML = getTaskYaml() }
+                        )
 
     {| PipelineVariables = pipelineVariables
        VariableGroupVariables = variableGroupVariables
        PipelineMetaData = pipelineMetaData
        AgentJobHeader = agentJobHeader
-       AgentJobTasksYAML = agentJobTasksYAML |}
+       AgentJobTasks = agentJobTasks |}
 
+// getAllPipelineData_WIP_WIP_WIP PipelineType.Build 
 
-// Focus A Task Group Reference
-(getTaskHeaders () |> List.filter isTaskGroup |> List.head).DOMElement |> click
-waitForElement ".rightPane .task-details-body"
+// // Open Task Group
+// // TODO
 
-// Read Task Group Reference Arguments
-getRightPane().DOMElement
-|> descendents ".task-details-body .ms-List-cell"
-|> List.map (fun el -> { ParameterName = el |> descendent "label" |> read
-                         ArgumentValue = el |> descendent "textarea" |> read })
+// getRightPane().DOMElement |> descendent ".heading-row > .task-type-info i" |> click
 
+// element ".callout-taskgroup-link a" |> click
 
-// Open Task Group
-// TODO
+// switchToTab 2
 
-getRightPane().DOMElement |> descendent ".heading-row > .task-type-info i" |> click
+// // name
+// getRightPane().DOMElement |> descendentByText "Name" |> ancestor ".input-field-component" |> descendent "input" |> read
 
-element ".callout-taskgroup-link a" |> click
+// // tasks
+// getTaskHeaders ()
+// |> List.filter (isTaskGroup >> not)
+// |> List.map (fun header ->
+//     click header.DOMElement
+//     getTaskYaml ())
 
-switchToTab 2
+// // get task group id
 
-// name
-getRightPane().DOMElement |> descendentByText "Name" |> ancestor ".input-field-component" |> descendent "input" |> read
-
-// tasks
-getTaskHeaders ()
-|> List.filter (isTaskGroup >> not)
-|> List.map (fun header ->
-    click header.DOMElement
-    getTaskYaml ())
-
-// get task group id
-
-(currentUrl () |> System.Uri).LocalPath.Split('/') |> Array.last
+// (currentUrl () |> System.Uri).LocalPath.Split('/') |> Array.last
