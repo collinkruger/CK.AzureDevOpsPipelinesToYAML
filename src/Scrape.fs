@@ -178,6 +178,25 @@ let getTaskGroupReference (rightPane:RightPane) =
     { DisplayName = displayName; Arguments = arguments }
 
 
+let getTaskGroupMeta (rightPane: RightPane) =
+    let name        = rightPane.DOMElement |> descendentByText "Name" |> ancestor ".input-field-component" |> descendent "input" |> read
+    let description = rightPane.DOMElement |> descendentByText "Description" |> ancestor ".input-field-component" |> descendent "textarea" |> read
+    let category    = rightPane.DOMElement |> descendentByText "Category" |> ancestor ".dtc-task-group-dialog-category" |> descendent "input" |> read
+
+    let parameters = rightPane.DOMElement
+                     |> descendents ".dtc-task-group-parameter-row"
+                     |> List.map (fun el ->
+                          { Name         = el |> descendent ".dtc-task-group-parameter-name" |> read
+                            DefaultValue = el |> descendent ".task-group-parameter-value-input input" |> read
+                            Description  = el |> descendent ".task-group-parameter-description-input input" |> read }
+                     )
+
+    {| Name = name
+       Description = description
+       Category = category
+       Parameters = parameters |}
+
+
 // WIP ------------------------------------------------------------------------------
 
 let getAllPipelineData_WIP_WIP_WIP (pipelineType:PipelineType) =
@@ -235,10 +254,12 @@ let getAllPipelineData_WIP_WIP_WIP (pipelineType:PipelineType) =
 
 // element ".callout-taskgroup-link a" |> click
 
-// switchToTab 2
+// switchToTabIndex 1
 
-// // name
-// getRightPane().DOMElement |> descendentByText "Name" |> ancestor ".input-field-component" |> descendent "input" |> read
+// let rightPane = getRightPane()
+// let taskGroupMeta = getTaskGroupMeta rightPane
+
+
 
 // // tasks
 // getTaskHeaders ()

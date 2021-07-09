@@ -27,10 +27,17 @@ type TaskGroupCategory =
     | Utility
     | Test
 
+type TaskGroupParameter = {
+    Name: string
+    DefaultValue: string
+    Description: string
+}
+
 type TaskGroup = {
     Name: string
+    Description: string
     Category: TaskGroupCategory
-    Variables: Variable list
+    Parameters: TaskGroupParameter list
 }
 
 type TaskGroupReference = {

@@ -44,3 +44,22 @@ let descendentByTextOpt (str:string) =
         descendentByText str |> Some
     with
         | :? NoSuchElementException -> None
+
+let tabIds () =
+    browser.WindowHandles
+    |> List.ofSeq
+
+let currentTabId () =
+    browser.CurrentWindowHandle
+
+let currentTabIndex () =
+    let currentTabId = currentTabId ()
+    tabIds() |> List.findIndex ((=) currentTabId)
+
+let switchToTabIndex i =
+    switchToTab (i + 1)
+
+let switchToTabId id =
+    let ids = tabIds ()
+    let i = ids |> List.findIndex ((=) id)
+    switchToTabIndex i

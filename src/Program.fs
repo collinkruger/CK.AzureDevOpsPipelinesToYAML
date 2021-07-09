@@ -31,7 +31,7 @@ let main argv =
     printfn "Navigate to your Azure DevOps pipeline, then press any key."
     Console.ReadKey() |> ignore
 
-    getAllPipelineData_WIP_WIP_WIP() |> printfn "%A"
+    // getAllPipelineData_WIP_WIP_WIP() |> printfn "%A"
 
     // TODO: Flatten variable references
     // TODO: Save data in a meaningful way
