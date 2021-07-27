@@ -1,8 +1,18 @@
 namespace Domain
 
+type VariableValue =
+    | Value of string
+    | Secret
+
+type PipelineVariable = {
+    Name: string
+    Value: VariableValue
+    SettableAtQueueTime: bool
+}
+
 type Variable = {
     Name: string
-    Value: string
+    Value: VariableValue
 }
 
 type VariableGroup = {
@@ -26,11 +36,13 @@ type TaskGroupCategory =
     | Package
     | Utility
     | Test
+    | Unknown of string
 
 type TaskGroupParameter = {
     Name: string
     DefaultValue: string
     Description: string
+
 }
 
 type TaskGroup = {
@@ -38,27 +50,29 @@ type TaskGroup = {
     Description: string
     Category: TaskGroupCategory
     Parameters: TaskGroupParameter list
+    Tasks: TaskListTask list
 }
-
-type TaskGroupReference = {
+and TaskGroupReference = {
     DisplayName: string
     Arguments: Argument list
+    TaskGroup: TaskGroup
 }
-
-type AgentJobTask =
+and TaskListTask =
     | Task of Task
     | TaskGroupReference of TaskGroupReference
 
 type AgentJob = {
-    Name: string
-    AgentPool: string option
-    Tasks: AgentJobTask list
+    DisplayName: string
+    AgentPool: string
+    Tasks: TaskListTask list
 }
 
 type Pipeline = {
     Name: string
     AgentPool: string
-    Repository: string
-    Branch: string
+    // Repository: string // TODO
+    // Branch: string     // TODO
+    PipelineVariables: PipelineVariable list
+    VariableGroupVariables: VariableGroup list
     AgentJobs: AgentJob list
 }
