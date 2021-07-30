@@ -8,44 +8,15 @@ open System.Linq
 open System.Collections.Generic
 open System.Text.RegularExpressions
 
-module File =
-    open System.IO
-
-    let readFile fp =
-        File.ReadAllText(fp)
-
-    let writeFile fp str =
-        File.WriteAllText(fp, str)
-
-module StringExt =
-    open System
-
-    let  join (seperator:string) (lines:string seq) =
-        String.Join(seperator, lines)
-
-open File
+open BCLExtensions.File
 let json_path = @"C:\HI\blah.json"
-let pipeline = File.ReadAllText(json_path) |> JsonConvert.DeserializeObject<Pipeline>
-let yaml_path = @"C:\Hi\Doodles.yaml"
-let task (Task task) = task
-(pipeline.AgentJobs.[0].Tasks.[0] |> task).YAML |> writeFile yaml_path
-let yaml = readFile yaml_path
-
-type VariableReference = {
-    Value: string
-    StartIndex: int
-    EndIndex: int
-}
-
-type UndefinedVariable = {
-    Name: string
-    Usages: VariableReference list
-}
-
-type Parameter = {
-    Name: string
-    UndefinedVariable: UndefinedVariable
-}
+let pipeline = File.ReadAllText(json_path)
+               |> JsonConvert.DeserializeObject<Pipeline>
+let agentJob = pipeline.AgentJobs.[0]
+// let yaml_path = @"C:\Hi\Doodles.yaml"
+// let task (Task task) = task
+// (pipeline.AgentJobs.[0].Tasks.[0] |> task).YAML |> writeFile yaml_path
+// let yaml = readFile yaml_path
 
 module Blah =
     open StringExt
@@ -71,7 +42,7 @@ module Blah =
                     inToken <- true
                     start <- i-1
                 elif inToken && c = ')' then
-                    printf "%A to %A of %A" start i (yaml.Length)
+                    // printf "%A to %A of %A" start i (yaml.Length)
                     yield { Value = yaml.Substring(start, i-start+1)
                             StartIndex = start
                             EndIndex = i }
@@ -79,7 +50,7 @@ module Blah =
                     start <- -1]
 
     /// Remove parameter comment lines (the leading comment lines of the ADO generated YAML), and trim.
-    let removeLeadingComments (yaml:string) =
+    let removeLeadingCommentsAndTrim (yaml:string) =
 
         let lines = yaml.Trim().Split("\r\n")
 
@@ -126,8 +97,9 @@ module Blah =
 module Template =
     open System.Text
     open StringExt
+    open Blah
 
-    let parameters parameters =
+    let parametersSection parameters =
         seq {
             yield "parameters:"
             for p in parameters do
@@ -135,7 +107,7 @@ module Template =
         }
         |> join "\r\n"
 
-    let body body parameters =
+    let taskBody body (parameters:Parameter list) =
         let sb = StringBuilder(body:string)
 
         parameters
@@ -143,23 +115,50 @@ module Template =
         |> Seq.sortByDescending (fun (v,_) -> v.StartIndex)
         |> Seq.iter (fun (v,p) -> 
             sb.Remove(v.StartIndex, v.EndIndex-v.StartIndex+1)
-              .Insert(v.StartIndex, sprintf "${{ %s }}" p.Name)
+              .Insert(v.StartIndex, sprintf "${{ parameters.%s }}" p.Name)
             |> ignore)
 
         sb.ToString()
 
+    let agentJobTaskList (taskListTasks:TaskListTask list) =
+        let tasks = taskListTasks
+                    |> List.choose (function | Task task -> Some task | _ -> None) // TODO: Support TaskGroups
+
+        let parametersSection = tasks |> List.collect (fun t -> t.YAML |> readParameterReferences)
+                                      |> toUndefinedVariables
+                                      |> List.distinctBy (fun x -> x.Name)
+                                      |> List.sortBy (fun x -> x.Name)
+                                      |> List.map toParameter
+                                      |> parametersSection
+
+        let tasks = tasks |> List.map (fun t -> t.YAML |> readParameterReferences
+                                                       |> toUndefinedVariables
+                                                       |> List.map toParameter
+                                                       |> taskBody t.YAML
+                                                       |> removeLeadingCommentsAndTrim)
+
+        seq {
+            yield parametersSection
+            yield! tasks
+        }
+        |> join "\r\n\r\n"
+
+
+
+    pipeline.AgentJobs.[0].Tasks |> agentJobTaskList
 
 
     // open Blah
 
-    // yaml_path |> readFile
-    //           |> readParameterReferences
-    //           |> toUndefinedVariables
-    //           |> List.map toParameter
-    //           |> parameters
+    // // yaml_path |> readFile
+    // //           |> readParameterReferences
+    // //           |> toUndefinedVariables
+    // //           |> List.map toParameter
+    // //           |> parameters
 
     // yaml_path |> readFile
     //           |> readParameterReferences
     //           |> toUndefinedVariables
     //           |> List.map toParameter
-    //           |> body (yaml)
+    //           |> body yaml
+    //           |> removeLeadingCommentsAndTrim

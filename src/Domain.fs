@@ -42,7 +42,6 @@ type TaskGroupParameter = {
     Name: string
     DefaultValue: string
     Description: string
-
 }
 
 type TaskGroup = {
