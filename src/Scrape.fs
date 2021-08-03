@@ -229,7 +229,7 @@ module Variables =
             rightPane.DOMElement
             |> descendents ".ms-GroupedList-group"
             |> List.map (fun el ->
-                let groupName = el |> descendent ".dtc-variable-group-header-info" |> read
+                let groupName = (el |> descendent ".dtc-variable-group-header-info" |> read).Split(' ').[0]
 
                 let variables = el
                                 |> descendents ".ms-DetailsRow-fields"

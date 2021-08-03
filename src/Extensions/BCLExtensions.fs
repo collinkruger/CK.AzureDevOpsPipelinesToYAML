@@ -13,7 +13,7 @@ module StringExt =
     open System
     open System.Text.RegularExpressions
 
-    let  join (seperator:string) (lines:string seq) =
+    let join (seperator:string) (lines:string seq) =
         String.Join(seperator, lines)
 
     let replace (pattern:string) (replacement:string) (str:string) =

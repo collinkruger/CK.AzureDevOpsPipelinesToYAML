@@ -5,9 +5,9 @@
     <WarnOn>3390;$(WarnOn)</WarnOn>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="BCLExtensions.fs" />
+    <Compile Include="Extensions/BCLExtensions.fs" />
+    <Compile Include="Extensions/CanopyExtensions.fs" />
     <Compile Include="Domain.fs" />
-    <Compile Include="CanopyExtensions.fs" />
     <Compile Include="Scrape.fs" />
     <Compile Include="ParseAndEmit.fs" />
     <Compile Include="Development.fs" />
